@@ -1,65 +1,56 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Messaging;
 using System.IO;
+using System.Reflection;
 
-enum WinError { ERROR_PATH_NOT_FOUND = 3 };
+// https://docs.microsoft.com/ja-jp/windows/win32/debug/system-error-codes#system-error-codes
+enum WinError { ERROR_PATH_NOT_FOUND = 3, ERROR_BAD_ARGUMENTS = 160 };
 
 namespace Mq
 {
-    internal class Mq
+    internal static class Mq
     {
+        static string Name => Assembly.GetAssembly(typeof(Mq)).GetName().Name;
         static void Create(string q) { MessageQueue.Create(q); }
         static void Delete(string q) { MessageQueue.Delete(q); }
         static bool Exists(string q) { return MessageQueue.Exists(q); }
-        static void GetPrivateQueues(string machine)
-        {
-            MessageQueue[] qs = MessageQueue.GetPrivateQueuesByMachine(machine);
-            for (long i = 0; i < qs.LongLength; ++i)
-            {
-                //PrintHead(Console.Out);
-                //PrintQ(qs[i]);
-                qs[i].Dispose();
-            }
-        }
+        static MessageQueue Construct(string q) { return new MessageQueue(q); }
 
-        private static void PrintQ(MessageQueue q,TextWriter txt)
+        static int Main(string[] args)
         {
-            //txt.WriteLine(String.Format("", );
-        }
-        static void Main(string[] args)
-        {
+            if (args.Length < 2)
+            {
+                Console.Error.WriteLine(string.Format("Usage: {0} [Exists|Construct|Create|Delete] {{qName}}", Name));
+                return (int)WinError.ERROR_BAD_ARGUMENTS;
+            }
             string command = args[0];
+            string qName = args[1];
             switch (command)
             {
                 case "Create":
-                    Create(args[1]);
-                    break;
+                    Create(qName);
+                    return 0;
                 case "Delete":
-                    Delete(args[1]);
-                    break;
-                case "GetPrivateQueues":
-                    GetPrivateQueues(args[1]);
-                    break;
+                    Delete(qName);
+                    return 0;
                 case "Construct":
-                    new MessageQueue(args[1]);
-                    break;
+                    Construct(qName);
+                    return 0;
                 case "Exists":
-                    if (Exists(args[1]))
+                    if (Exists(qName))
                     {
-                        Console.Out.WriteLine(string.Format("Exsists {0}", args[1]));
+                        Console.Out.WriteLine(string.Format("Exsists {0}", qName));
+                        return 0;
                     }
                     else
                     {
-                        Console.Out.WriteLine(string.Format("Not_Exsists {0}", args[1]));
-                        Environment.Exit((int)WinError.ERROR_PATH_NOT_FOUND);
+                        Console.Out.WriteLine(string.Format("Not_Exsists {0}", qName));
+                        return (int)WinError.ERROR_PATH_NOT_FOUND;
                     }
-                    break;
+                default:
+                    Console.Error.WriteLine(string.Format("{0} invalid command.", command));
+                    return (int)WinError.ERROR_BAD_ARGUMENTS;
             }
-
         }
     }
 }
